@@ -15,6 +15,8 @@ func processMessage(message map[string]any) string {
 		return ""
 	}
 
+	println("Processing message:", content)
+
 	t, err := template.New("content").Delims("[[", "]]").Parse(content)
 	if err != nil {
 		println("Error parsing template:", err)
@@ -33,7 +35,6 @@ func processMessage(message map[string]any) string {
 	var prefillWriter strings.Builder
 	err = t.ExecuteTemplate(&prefillWriter, "prefill", nil)
 	if err != nil {
-		println("Error executing prefill template:", err)
 		return ""
 	}
 
@@ -56,11 +57,15 @@ func ParsePayload(data []byte) []byte {
 
 		for i := range messages {
 			if message, ok := messages[i].(map[string]any); ok {
-				prefill = processMessage(message)
+				if new_prefill := processMessage(message); new_prefill != "" {
+					println("Prefill defined in message:", new_prefill)
+					prefill = new_prefill
+				}
 			}
 		}
 
 		if prefill != "" {
+			println("Adding prefill to payload:", prefill)
 			newMessage := map[string]any{
 				"role":    "assistant",
 				"content": prefill,
