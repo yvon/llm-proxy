@@ -38,7 +38,12 @@ If any message contains a `prefill` block using `[[` and `]]` delimiters, the pr
 
 **Example:**
 
-Input message:
+Suppose you send the following message:
+```
+Hello [[ define "prefill" ]]I'm an AI assistant[[ end ]]
+```
+
+This would normally be sent as:
 ```json
 {
   "role": "user", 
@@ -46,6 +51,16 @@ Input message:
 }
 ```
 
-The proxy will:
-- Modify the user message content to: "Hello "
-- Add an assistant message: `{"role": "assistant", "content": "I'm an AI assistant"}`
+The proxy will transform it to:
+```json
+[
+  {
+    "role": "user",
+    "content": "Hello "
+  },
+  {
+    "role": "assistant", 
+    "content": "I'm an AI assistant"
+  }
+]
+```
