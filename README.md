@@ -1,14 +1,10 @@
 # LLM Proxy
 
-A reverse proxy server for OpenRouter.ai that adds prefill functionality.
-
-## What is Prefill?
-
-Prefill allows you to start the LLM's response with predefined text, controlling the format and style of the AI's output.
+A reverse proxy server for OpenRouter.ai that adds prefill functionality and cache control for Anthropic models.
 
 ## Why Use This Proxy?
 
-Many LLM clients don't support native prefill configuration. This proxy enables prefill functionality from any message in the conversation - user messages, system prompts, or any other message type.
+Many LLM clients don't support native prefill configuration or cache control. This proxy enables these advanced features from any message in the conversation - user messages, system prompts, or any other message type.
 
 ## Usage
 
@@ -62,4 +58,26 @@ The proxy will transform it to:
     "content": "I'm an AI assistant"
   }
 ]
+```
+
+### Cache Control (Anthropic Models)
+
+If any message contains the `|patch|` command, the proxy will add cache control to the last user message for Anthropic models. This enables [prompt caching functionality](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) to improve performance and reduce costs for repeated prompts.
+
+**Example:**
+
+```
+Your message content |patch|
+```
+
+The proxy will transform it to:
+
+```json
+{
+  "role": "user",
+  "content": "Your message content ",
+  "cache_control": {
+    "type": "ephemeral"
+  }
+}
 ```

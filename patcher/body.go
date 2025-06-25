@@ -1,73 +1,104 @@
 package patcher
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"os"
-	"strings"
 	"regexp"
+	"strings"
 )
 
-var prefillRegex = regexp.MustCompile(`\|prefill:([^|]*)\|`)
-
-func processMessage(message map[string]any) string {
-	content, ok := message["content"].(string)
-	if !ok {
-		fmt.Fprintln(os.Stderr, "Message content is not a string")
-		return ""
-	}
-
-	// Extract the prefill
-	matches := prefillRegex.FindStringSubmatch(content)
-	if len(matches) < 2 {
-		return ""
-	}
-
-	prefill := strings.TrimSpace(matches[1])
-
-	// Clean the message
-	cleanContent := prefillRegex.ReplaceAllString(content, "")
-	message["content"] = strings.TrimSpace(cleanContent)
-
-	return prefill
+type Payload struct {
+	Model    string         `json:"model,omitempty"`
+	Messages []Message      `json:"messages"`
+	Unkown   jsontext.Value `json:",unknown"`
 }
 
-func injectPrefill(payload map[string]any) {
-	if messages, ok := payload["messages"].([]any); ok {
-		var prefill string
-		for i := range messages {
-			if message, ok := messages[i].(map[string]any); ok {
-				if newPrefill := processMessage(message); newPrefill != "" {
-					prefill = newPrefill
-				}
-			} else {
-				fmt.Fprintln(os.Stderr, "Error: unexpected message type")
+type Message struct {
+	Role         string         `json:"role"`
+	Content      string         `json:"content"`
+	CacheControl CacheControl   `json:"cache_control,omitzero"`
+	Unkown       jsontext.Value `json:",unknown"`
+}
+
+type CacheControl struct {
+	Type string `json:"type"`
+}
+
+func findTag(payload *Payload, tag string) []string {
+	var last []string = nil
+
+	pattern := fmt.Sprintf(`\|%s(?::\s*([^|]*))?\|`, regexp.QuoteMeta(tag))
+	regexp := regexp.MustCompile(pattern)
+
+	for i := range payload.Messages {
+		content := payload.Messages[i].Content
+		submatch := regexp.FindStringSubmatch(content)
+
+		if submatch != nil {
+			last = submatch
+		}
+
+		clean := regexp.ReplaceAllString(content, "")
+		payload.Messages[i].Content = strings.TrimSpace(clean)
+	}
+
+	return last
+}
+
+func getLastUserMessage(messages []Message) *Message {
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			return &messages[i]
+		}
+	}
+	return nil
+}
+
+func addCache(payload *Payload) {
+	var match = findTag(payload, "cache")
+
+	if match != nil {
+		lastUserMessage := getLastUserMessage(payload.Messages)
+
+		if lastUserMessage != nil {
+			lastUserMessage.CacheControl = CacheControl{
+				Type: "ephemeral",
 			}
 		}
-		if prefill != "" {
-			newMessage := map[string]any{
-				"role":    "assistant",
-				"content": prefill,
-			}
-			payload["messages"] = append(messages, newMessage)
-		}
-	} else {
-		fmt.Fprintln(os.Stderr, "Error: expected an array of messages")
 	}
 }
 
-func Body(data []byte) []byte {
-	var payload map[string]any
-	err := json.Unmarshal(data, &payload)
+func injectPrefill(payload *Payload) {
+	var match = findTag(payload, "prefill")
+
+	if len(match) > 1 {
+		newMessage := Message{
+			Role:    "assistant",
+			Content: match[1],
+		}
+		payload.Messages = append(payload.Messages, newMessage)
+	}
+}
+
+func Body(body []byte) []byte {
+	var payload Payload
+
+	err := json.Unmarshal(body, &payload)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error parsing JSON:", err)
-		return data
+		return body
 	}
-	injectPrefill(payload)
-	modifiedData, err := json.Marshal(payload)
+
+	injectPrefill(&payload)
+	addCache(&payload)
+
+	modified, err := json.Marshal(payload)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error marshaling JSON:", err)
-		return data
+		return body
 	}
-	return modifiedData
+
+	return modified
 }
