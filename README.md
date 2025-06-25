@@ -62,12 +62,12 @@ The proxy will transform it to:
 
 ### Cache Control (Anthropic Models)
 
-If any message contains the `|patch|` command, the proxy will add cache control to the last user message for Anthropic models. This enables [prompt caching functionality](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) to improve performance and reduce costs for repeated prompts.
+If any message contains the `|cache|` command, the proxy will add cache control to the last user message for Anthropic models. This enables [prompt caching functionality](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) to improve performance and reduce costs for repeated prompts.
 
 **Example:**
 
 ```
-Your message content |patch|
+Your message content |cache|
 ```
 
 The proxy will transform it to:
@@ -75,7 +75,7 @@ The proxy will transform it to:
 ```json
 {
   "role": "user",
-  "content": "Your message content ",
+  "content": "Your message content",
   "cache_control": {
     "type": "ephemeral"
   }
