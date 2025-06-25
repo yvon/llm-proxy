@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/template"
+	"regexp"
 )
+
+var prefillRegex = regexp.MustCompile(`\|prefill:([^|]*)\|`)
 
 func processMessage(message map[string]any) string {
 	content, ok := message["content"].(string)
@@ -14,24 +16,20 @@ func processMessage(message map[string]any) string {
 		fmt.Fprintln(os.Stderr, "Message content is not a string")
 		return ""
 	}
-	t, err := template.New("content").Delims("[[", "]]").Parse(content)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error parsing template:", err)
+
+	// Extract the prefill
+	matches := prefillRegex.FindStringSubmatch(content)
+	if len(matches) < 2 {
 		return ""
 	}
-	var contentWriter strings.Builder
-	err = t.Execute(&contentWriter, nil)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error executing main template:", err)
-		return ""
-	}
-	message["content"] = contentWriter.String()
-	var prefillWriter strings.Builder
-	err = t.ExecuteTemplate(&prefillWriter, "prefill", nil)
-	if err != nil {
-		return ""
-	}
-	return prefillWriter.String()
+
+	prefill := strings.TrimSpace(matches[1])
+
+	// Clean the message
+	cleanContent := prefillRegex.ReplaceAllString(content, "")
+	message["content"] = strings.TrimSpace(cleanContent)
+
+	return prefill
 }
 
 func injectPrefill(payload map[string]any) {

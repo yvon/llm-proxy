@@ -10,18 +10,14 @@ Prefill allows you to start the LLM's response with predefined text, controlling
 
 Many LLM clients don't support native prefill configuration. This proxy enables prefill functionality from any message in the conversation - user messages, system prompts, or any other message type.
 
-## Compilation
-
-```
-go build
-```
-
 ## Usage
 
 1. **Start the server:**
+
    ```
    llm_proxy.exe
    ```
+
    The server will start on port 8080.
 
 2. **Configure your OpenRouter API key:**
@@ -31,7 +27,7 @@ go build
 
 ### Prefill
 
-If any message contains a `prefill` block using `[[` and `]]` delimiters, the proxy will:
+If any message contains a `prefill` block using `|prefill:` and `|` delimiters, the proxy will:
 
 1. Remove the prefill block from the original message content
 2. Add a new assistant message with the prefill content to the conversation
@@ -39,19 +35,22 @@ If any message contains a `prefill` block using `[[` and `]]` delimiters, the pr
 **Example:**
 
 Suppose you send the following message:
+
 ```
-Hello [[ define "prefill" ]]I'm an AI assistant[[ end ]]
+Hello |prefill: I'm an AI assistant|
 ```
 
 This would normally be sent as:
+
 ```json
 {
-  "role": "user", 
-  "content": "Hello [[ define \"prefill\" ]]I'm an AI assistant[[ end ]]"
+  "role": "user",
+  "content": "Hello |prefill: I'm an AI assistant|"
 }
 ```
 
 The proxy will transform it to:
+
 ```json
 [
   {
@@ -59,7 +58,7 @@ The proxy will transform it to:
     "content": "Hello "
   },
   {
-    "role": "assistant", 
+    "role": "assistant",
     "content": "I'm an AI assistant"
   }
 ]
