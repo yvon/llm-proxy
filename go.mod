@@ -1,3 +1,3 @@
-module llm_proxy
+module llmproxy
 
 go 1.24.2
